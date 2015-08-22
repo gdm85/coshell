@@ -25,7 +25,11 @@ Thanks to [Go language](https://golang.org/), this is a self-contained executabl
 Installation
 ============
 
-Build it with:
+Once you run:
+
+    go get github.com/gdm85/coshell
+
+The binary will be available in your ``$GOPATH/bin``; alternatively, build it with:
 
     go build
 
