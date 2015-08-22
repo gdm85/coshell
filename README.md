@@ -20,7 +20,7 @@ Self-contained
     $ ldd coshell
     	not a dynamic executable
 
-Thanks to [Go language](https://golang.org/), this is a self-contained executable thus a perfect match for inclusion in an initramfs.
+Thanks to [Go language](https://golang.org/), this is a self-contained executable thus a perfect match for inclusion in an initramfs or any other project where you would prefer not to have too many dependencies.
 
 Installation
 ============
@@ -53,4 +53,4 @@ Output:
 Order is not deterministic by default, but if you specify ``--deinterlace`` option all output will be buffered and afterwards
 printed in the original order of specified commands.
 
-See also examples in ``examples/`` directory.
+See also other examples in ``examples/`` directory.
