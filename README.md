@@ -1,4 +1,4 @@
-coshell v0.1.0
+coshell v0.1.1
 ==============
 
 A no-frills dependency-free replacement for GNU parallel, perfect for initramfs usage.
@@ -50,4 +50,7 @@ Output:
     test1
     test2
 
-**NOTE:** order is not deterministic!
+Order is not deterministic by default, but if you specify ``--deinterlace`` option all output will be buffered and afterwards
+printed in the original order of specified commands.
+
+See also examples in ``examples/`` directory.
