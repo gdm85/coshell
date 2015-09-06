@@ -22,6 +22,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -106,6 +107,11 @@ func (sow sortedOutputWriter) Write(p []byte) (n int, err error) {
 	return
 }
 
+func fatal(err error) {
+	fmt.Fprintf(os.Stderr, "coshell: %s\n", err)
+	os.Exit(1)
+}
+
 func main() {
 	if len(os.Args) > 1 {
 		for i := 1; i < len(os.Args); i++ {
@@ -140,22 +146,21 @@ func main() {
 			}
 
 			// crash in case of other errors
-			panic(err)
+			fatal(err)
 		}
 
 		commandLines = append(commandLines, line)
 	}
 
 	if len(commandLines) == 0 {
-		fmt.Fprintf(os.Stderr, "coshell: please specify at least 1 command in standard input\n")
-		os.Exit(1)
+		fatal(errors.New("please specify at least 1 command in standard input"))
 	}
 
 	// some common values for all commands
 	env := os.Environ()
 	cwd, err := os.Getwd()
 	if err != nil {
-		panic(err)
+		fatal(err)
 	}
 
 	// prepare commands to be executed
@@ -186,7 +191,7 @@ func main() {
 	for i := 0; i < len(commands); i++ {
 		err := commands[i].Start()
 		if err != nil {
-			panic(err)
+			fatal(err)
 		}
 	}
 
@@ -200,17 +205,17 @@ func main() {
 				if status, ok := exitError.Sys().(syscall.WaitStatus); ok {
 					exitCode += status.ExitStatus()
 				} else {
-					panic("cannot read exit status")
+					fatal(errors.New("cannot read exit status"))
 				}
 			} else {
-				panic(err)
+				fatal(err)
 			}
 		}
 
 		// print deinterlaced output
 		if deinterlace {
 			if err := outputs[i].ReplayOutputs(); err != nil {
-				panic(err)
+				fatal(err)
 			}
 		}
 	}
