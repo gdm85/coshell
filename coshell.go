@@ -1,6 +1,6 @@
 /*
- * coshell v0.1.1 - a no-frills dependency-free replacement for GNU parallel
- * Copyright (C) 2014 gdm85 - https://github.com/gdm85/coshell/
+ * coshell v0.1.2 - a no-frills dependency-free replacement for GNU parallel
+ * Copyright (C) 2014-2015 gdm85 - https://github.com/gdm85/coshell/
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"syscall"
 
 	cosh "./cosh"
 )
@@ -36,16 +37,34 @@ func fatal(err error) {
 
 func main() {
 	deinterlace := false
+	nextIsSignal := false
+	halt := false
+	signal := syscall.SIGKILL
 	if len(os.Args) > 1 {
 		for i := 1; i < len(os.Args); i++ {
+			if nextIsSignal {
+				var err error
+				signal, err = cosh.ParseSignal(os.Args[i])
+				if err != nil {
+					fatal(err)
+				}
+				nextIsSignal = false
+				continue
+			}
 			switch os.Args[i] {
-			case "--help":
+			case "--help", "-h":
 				fmt.Printf("coshell v0.1.2 by gdm85 - Licensed under GNU GPLv2\n")
-				fmt.Printf("Usage:\n\tcoshell [--deinterlace|-d] < list-of-commands\n")
-				fmt.Printf("\t\t--deinterlace | -d\t\tRe-order stdout/stderr second original order of running programs\n\n")
+				fmt.Printf("Usage:\n\tcoshell [--help|-h] [--deinterlace|-d] [--halt|-a] [--signal=KILL|-s=KILL] < list-of-commands\n")
+				fmt.Printf("\t\t--deinterlace | -d\t\tShow individual output of processes in blocks, second order of termination\n\n")
+				fmt.Printf("\t\t--halt | -a\t\tTerminate neighbour processes as soon as any fails\n\n")
+				fmt.Printf("\t\t--signal | -s\t\tSignal used to terminate neighbour processes in case one fails, default KILL\n\n")
 				fmt.Printf("Each line read from standard input will be run as a command via `sh -c`\n")
-				fmt.Printf("NOTE: when using --deinterlace, output will necessarily be buffered\n")
 				os.Exit(0)
+			case "--halt", "-a":
+				halt = true
+				continue
+			case "--signal", "-s":
+				nextIsSignal = true
 			case "--deinterlace", "-d":
 				deinterlace = true
 				continue
@@ -79,7 +98,7 @@ func main() {
 		fatal(errors.New("please specify at least 1 command in standard input"))
 	}
 
-	cg := cosh.NewCommandGroup(deinterlace)
+	cg := cosh.NewCommandGroup(deinterlace, halt, signal)
 
 	err := cg.Add(commandLines...)
 	if err != nil {

@@ -1,6 +1,6 @@
 /*
- * coshell v0.1.1 - a no-frills dependency-free replacement for GNU parallel
- * Copyright (C) 2014 gdm85 - https://github.com/gdm85/coshell/
+ * coshell v0.1.2 - a no-frills dependency-free replacement for GNU parallel
+ * Copyright (C) 2014-2015 gdm85 - https://github.com/gdm85/coshell/
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -21,10 +21,11 @@ package cosh
 
 import (
 	"bytes"
-
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 	"sync"
 	"syscall"
 )
@@ -105,10 +106,12 @@ type CommandGroup struct {
 	commands    []*exec.Cmd
 	outputs     []*SortedOutput
 	deinterlace bool
+	halt        bool
+	signal      syscall.Signal
 }
 
-func NewCommandGroup(deinterlace bool) *CommandGroup {
-	return &CommandGroup{deinterlace: deinterlace}
+func NewCommandGroup(deinterlace, halt bool, signal syscall.Signal) *CommandGroup {
+	return &CommandGroup{deinterlace: deinterlace, halt: halt, signal: signal}
 }
 
 func (cg *CommandGroup) Start() error {
@@ -178,6 +181,140 @@ func (cg *CommandGroup) Join() (err error, exitCode int) {
 		if count == len(cg.commands) {
 			break
 		}
+
+		// mark command as finished
+		cg.commands[ev.i] = nil
+
+		// broadcast a signal to all neighbours
+		if cg.halt && ev.exitCode != 0 {
+			for i := 0; i < len(cg.commands); i++ {
+				if i == ev.i || cg.commands[i] == nil {
+					// skip self and already completed processes
+					continue
+				}
+
+				// send signal, even if process is no more running
+				go func(i int) {
+					err := cg.commands[i].Process.Signal(cg.signal)
+					if err != nil {
+						// print error and keep sending signals
+						fmt.Fprintf(os.Stderr, "kill: %v", err)
+					}
+				}(i)
+			}
+
+			// do not repeat signal-sending
+			cg.halt = false
+		}
+	}
+
+	return
+}
+
+func parseTokens(s string) (tokens []string, err error) {
+	s = strings.TrimSpace(s)
+
+	escaping := false
+	quoting := false
+	squoting := false
+	just_quoted := false
+	accum := ""
+	for i := 0; i < len(s); i++ {
+		if escaping {
+			// escape sequences
+			if s[i] == '\\' {
+				accum += fmt.Sprintf("%c", s[i])
+			} else {
+				if (quoting && s[i] == '"') || (squoting && s[i] == '\'') {
+					accum += fmt.Sprintf("%c", s[i])
+				} else {
+					err = fmt.Errorf("unrecognized escape sequence: '\\%c'", s[i])
+					return
+				}
+			}
+			escaping = false
+
+			continue
+		}
+
+		if quoting {
+			// interrupt double quoting
+			if s[i] == '"' {
+				quoting = false
+				just_quoted = true
+				tokens = append(tokens, accum)
+				accum = ""
+				continue
+			}
+		} else {
+			just_quoted = false
+		}
+
+		if squoting {
+			// interrupt single quoting
+			if s[i] == '\'' {
+				squoting = false
+				just_quoted = true
+				tokens = append(tokens, accum)
+				accum = ""
+				continue
+			}
+		} else {
+			just_quoted = false
+		}
+
+		switch s[i] {
+		case '\\':
+			if quoting || squoting {
+				escaping = true
+			}
+		case '"':
+			if squoting {
+				accum += fmt.Sprintf("%c", s[i])
+			} else {
+				quoting = true
+			}
+		case '\'':
+			if quoting {
+				accum += fmt.Sprintf("%c", s[i])
+			} else {
+				squoting = true
+			}
+		case ' ':
+			if quoting || squoting {
+				accum += fmt.Sprintf("%c", s[i])
+			} else {
+				if len(accum) == 0 {
+					if just_quoted {
+						tokens = append(tokens, accum)
+					}
+				} else {
+					tokens = append(tokens, accum)
+					accum = ""
+				}
+			}
+		default:
+			accum += fmt.Sprintf("%c", s[i])
+		}
+	}
+
+	if quoting {
+		err = errors.New("unterminated double-quoted string")
+		return
+	}
+
+	if squoting {
+		err = errors.New("unterminated single-quoted string")
+		return
+	}
+
+	if escaping {
+		err = errors.New("unterminated escape sequence")
+		return
+	}
+
+	if len(accum) > 0 {
+		tokens = append(tokens, accum)
 	}
 
 	return
@@ -201,7 +338,14 @@ func (cg *CommandGroup) Add(commandLines ...string) error {
 		}
 	}
 	for i := 0; i < len(commandLines); i++ {
-		commands[i] = exec.Command("sh", "-c", commandLines[i])
+		tokens, err := parseTokens(commandLines[i])
+		if err != nil {
+			return err
+		}
+		if len(tokens) == 0 || len(tokens[0]) == 0 {
+			return fmt.Errorf("line %d: invalid command line", i)
+		}
+		commands[i] = exec.Command(tokens[0], tokens[1:]...)
 		commands[i].Env = env
 		commands[i].Dir = cwd
 
