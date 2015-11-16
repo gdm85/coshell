@@ -25,7 +25,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"syscall"
 
 	cosh "./cosh"
 )
@@ -37,34 +36,20 @@ func fatal(err error) {
 
 func main() {
 	deinterlace := false
-	nextIsSignal := false
 	halt := false
-	signal := syscall.SIGKILL
 	if len(os.Args) > 1 {
 		for i := 1; i < len(os.Args); i++ {
-			if nextIsSignal {
-				var err error
-				signal, err = cosh.ParseSignal(os.Args[i])
-				if err != nil {
-					fatal(err)
-				}
-				nextIsSignal = false
-				continue
-			}
 			switch os.Args[i] {
 			case "--help", "-h":
 				fmt.Printf("coshell v0.1.2 by gdm85 - Licensed under GNU GPLv2\n")
 				fmt.Printf("Usage:\n\tcoshell [--help|-h] [--deinterlace|-d] [--halt|-a] [--signal=KILL|-s=KILL] < list-of-commands\n")
 				fmt.Printf("\t\t--deinterlace | -d\t\tShow individual output of processes in blocks, second order of termination\n\n")
 				fmt.Printf("\t\t--halt | -a\t\tTerminate neighbour processes as soon as any fails\n\n")
-				fmt.Printf("\t\t--signal | -s\t\tSignal used to terminate neighbour processes in case one fails, default KILL\n\n")
 				fmt.Printf("Each line read from standard input will be run as a command via `sh -c`\n")
 				os.Exit(0)
 			case "--halt", "-a":
 				halt = true
 				continue
-			case "--signal", "-s":
-				nextIsSignal = true
 			case "--deinterlace", "-d":
 				deinterlace = true
 				continue
@@ -98,7 +83,7 @@ func main() {
 		fatal(errors.New("please specify at least 1 command in standard input"))
 	}
 
-	cg := cosh.NewCommandGroup(deinterlace, halt, signal)
+	cg := cosh.NewCommandGroup(deinterlace, halt)
 
 	err := cg.Add(commandLines...)
 	if err != nil {

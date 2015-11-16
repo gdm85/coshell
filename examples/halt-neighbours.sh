@@ -12,9 +12,9 @@ generate_testcase() {
 	local AMT
 	for N in `seq 20`; do
 		if [ $N -eq 4 ]; then
-			echo "sh -c 'sleep 3 && false'"
+			echo "sleep 3 && false"
 		else
-			echo "sleep $N"
+			echo "sleep $N && echo 'slept $N seconds'"
 		fi
 	done
 }

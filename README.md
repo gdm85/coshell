@@ -52,15 +52,9 @@ printed in the same chronological order as process termination.
 
 ## halt-all option
 
-If `--halt-all` or `-a` option is specified then first process to terminate unsuccessfully (with non-zero exit code) will cause a
-signal to be broadcast to all other processes; signal can be defined with `--signal` or `-s`.
+If `--halt-all` or `-a` option is specified then first process to terminate unsuccessfully (with non-zero exit code) will cause 
+all processes to immediately exit (including coshell).
 
-## signal option
-
-In case the halt-all option is enabled, the signal specified through `--signal` or `-s` will be used to terminate the other processes; ignored otherwise.
-
-Valid values are specified in [cosh/signal.go](./cosh/signal.go).
-
-## Other examples
+## Examples
 
 See [examples/](examples/) directory.
