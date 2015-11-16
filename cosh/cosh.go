@@ -1,6 +1,6 @@
 /*
- * coshell v0.1.1 - a no-frills dependency-free replacement for GNU parallel
- * Copyright (C) 2014 gdm85 - https://github.com/gdm85/coshell/
+ * coshell v0.1.2 - a no-frills dependency-free replacement for GNU parallel
+ * Copyright (C) 2014-2015 gdm85 - https://github.com/gdm85/coshell/
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -21,7 +21,6 @@ package cosh
 
 import (
 	"bytes"
-
 	"errors"
 	"os"
 	"os/exec"
@@ -105,10 +104,11 @@ type CommandGroup struct {
 	commands    []*exec.Cmd
 	outputs     []*SortedOutput
 	deinterlace bool
+	halt        bool
 }
 
-func NewCommandGroup(deinterlace bool) *CommandGroup {
-	return &CommandGroup{deinterlace: deinterlace}
+func NewCommandGroup(deinterlace, halt bool) *CommandGroup {
+	return &CommandGroup{deinterlace: deinterlace, halt: halt}
 }
 
 func (cg *CommandGroup) Start() error {
@@ -177,6 +177,22 @@ func (cg *CommandGroup) Join() (err error, exitCode int) {
 
 		if count == len(cg.commands) {
 			break
+		}
+
+		// mark command as finished
+		cg.commands[ev.i] = nil
+		cg.outputs[ev.i] = nil
+
+		if cg.halt && ev.exitCode != 0 {
+			// dump outputs that are available
+			for _, output := range cg.outputs {
+				if output != nil {
+					_ = output.ReplayOutputs()
+				}
+			}
+
+			// perform hara-kiri
+			os.Exit(ev.exitCode)
 		}
 	}
 

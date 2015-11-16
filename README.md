@@ -1,12 +1,10 @@
-coshell v0.1.1
-==============
+# coshell v0.1.2
 
 A no-frills dependency-free replacement for GNU parallel, perfect for initramfs usage.
 
 Licensed under GNU/GPL v2.
 
-How it works
-============
+# How it works
 
 An ``sh -c ...`` command is started for each of the input commands; environment and current working directory are preserved.
 **NOTE:** file descriptors are not
@@ -14,16 +12,14 @@ An ``sh -c ...`` command is started for each of the input commands; environment 
 All commands will be executed, no matter which one fails.
 Return value will be the sum of exit values of each command.
 
-Self-contained
-==============
+# Self-contained
 
     $ ldd coshell
     	not a dynamic executable
 
 Thanks to [Go language](https://golang.org/), this is a self-contained executable thus a perfect match for inclusion in an initramfs or any other project where you would prefer not to have too many dependencies.
 
-Installation
-============
+# Installation
 
 Once you run:
 
@@ -35,8 +31,7 @@ The binary will be available in your ``$GOPATH/bin``; alternatively, build it wi
 
 Then copy the ``coshell`` binary to your PATH, ``~/bin``, ``/usr/local/bin`` or any of your option.
 
-Usage
-=====
+# Usage
 
 Specify each command on a single line as standard input.
 
@@ -50,7 +45,16 @@ Output:
     test1
     test2
 
-Order is not deterministic by default, but if you specify ``--deinterlace`` option all output will be buffered and afterwards
-printed in the original order of specified commands.
+## deinterlace option
 
-See also other examples in ``examples/`` directory.
+Order is not deterministic by default, but with option ``--deinterlace`` or ``-d`` all output will be buffered and afterwards
+printed in the same chronological order as process termination.
+
+## halt-all option
+
+If `--halt-all` or `-a` option is specified then first process to terminate unsuccessfully (with non-zero exit code) will cause 
+all processes to immediately exit (including coshell).
+
+## Examples
+
+See [examples/](examples/) directory.
