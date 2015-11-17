@@ -12,6 +12,9 @@ An ``sh -c ...`` command is started for each of the input commands; environment 
 All commands will be executed, no matter which one fails.
 Return value will be the sum of exit values of each command.
 
+It is suggested to use `exec` if you want the shell-spawned process to subsitute the shell and be responsibe to signals.
+See also http://tldp.org/LDP/abs/html/process-sub.html
+
 # Self-contained
 
     $ ldd coshell
