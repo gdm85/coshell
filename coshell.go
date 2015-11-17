@@ -26,7 +26,7 @@ import (
 	"io"
 	"os"
 
-	cosh "./cosh"
+	"github.com/gdm85/coshell/cosh"
 )
 
 func fatal(err error) {
