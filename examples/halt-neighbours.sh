@@ -1,5 +1,5 @@
 #!/bin/bash
-## deinterlace.sh
+## halt-neighbours.sh
 ##
 ## @author gdm85
 ##
