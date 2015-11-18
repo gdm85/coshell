@@ -1,5 +1,5 @@
 /*
- * coshell v0.1.2 - a no-frills dependency-free replacement for GNU parallel
+ * coshell v0.1.3 - a no-frills dependency-free replacement for GNU parallel
  * Copyright (C) 2014-2015 gdm85 - https://github.com/gdm85/coshell/
 
 This program is free software; you can redistribute it and/or
@@ -105,10 +105,11 @@ type CommandGroup struct {
 	outputs     []*SortedOutput
 	deinterlace bool
 	halt        bool
+	masterId    int
 }
 
-func NewCommandGroup(deinterlace, halt bool) *CommandGroup {
-	return &CommandGroup{deinterlace: deinterlace, halt: halt}
+func NewCommandGroup(deinterlace, halt bool, masterId int) *CommandGroup {
+	return &CommandGroup{deinterlace: deinterlace, halt: halt, masterId: masterId}
 }
 
 func (cg *CommandGroup) Start() error {
@@ -179,15 +180,31 @@ func (cg *CommandGroup) Join() (err error, exitCode int) {
 			break
 		}
 
-		// mark command as finished
+		// make these objects no more usable
 		cg.commands[ev.i] = nil
 		cg.outputs[ev.i] = nil
 
 		if cg.halt && ev.exitCode != 0 {
-			// dump outputs that are available
-			for _, output := range cg.outputs {
-				if output != nil {
-					_ = output.ReplayOutputs()
+			if cg.deinterlace {
+				// dump outputs that are available
+				for _, output := range cg.outputs {
+					if output != nil {
+						_ = output.ReplayOutputs()
+					}
+				}
+			}
+
+			// perform hara-kiri
+			os.Exit(ev.exitCode)
+		}
+
+		if cg.masterId != -1 && cg.masterId == ev.i {
+			if cg.deinterlace {
+				// dump outputs that are available
+				for _, output := range cg.outputs {
+					if output != nil {
+						_ = output.ReplayOutputs()
+					}
 				}
 			}
 

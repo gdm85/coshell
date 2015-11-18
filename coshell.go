@@ -1,5 +1,5 @@
 /*
- * coshell v0.1.2 - a no-frills dependency-free replacement for GNU parallel
+ * coshell v0.1.3 - a no-frills dependency-free replacement for GNU parallel
  * Copyright (C) 2014-2015 gdm85 - https://github.com/gdm85/coshell/
 
 This program is free software; you can redistribute it and/or
@@ -25,6 +25,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
+	"strings"
 
 	"github.com/gdm85/coshell/cosh"
 )
@@ -35,16 +37,71 @@ func fatal(err error) {
 }
 
 func main() {
-	deinterlace := false
-	halt := false
+	var deinterlace, halt, nextMightBeMasterId bool
+	masterId := -1
 	if len(os.Args) > 1 {
 		for i := 1; i < len(os.Args); i++ {
+			if nextMightBeMasterId {
+				nextMightBeMasterId = false
+				if len(os.Args[i]) == 0 {
+					fmt.Fprintf(os.Stderr, "Empty master command index specified\n")
+					os.Exit(1)
+					return
+				}
+
+				// clearly not a number
+				if os.Args[i][0] == '-' {
+					// use default
+					masterId = 0
+					continue
+				}
+
+				// argument is not starting with dash, number expected
+				i, err := strconv.Atoi(os.Args[i])
+				if err != nil || i < 0 {
+					fmt.Fprintf(os.Stderr, "Invalid master command index specified: %s\n", os.Args[i])
+					os.Exit(1)
+					return
+				}
+				masterId = i
+				continue
+			}
+
+			// check parameter of --master option
+			var remainder string
+			var found bool
+			if strings.HasPrefix(os.Args[i], "--master") {
+				remainder = os.Args[i][len("--master"):]
+				found = true
+			} else if strings.HasPrefix(os.Args[i], "-m") {
+				remainder = os.Args[i][len("-m"):]
+				found = true
+			}
+			if found {
+				if len(remainder) == 0 {
+					nextMightBeMasterId = true
+					continue
+				}
+				if remainder[0] == '=' {
+					remainder = remainder[1:]
+				}
+				i, err := strconv.Atoi(remainder)
+				if err != nil || i < 0 {
+					fmt.Fprintf(os.Stderr, "Invalid master command index specified: %s\n", remainder)
+					os.Exit(1)
+					return
+				}
+				masterId = i
+				continue
+			}
+
 			switch os.Args[i] {
 			case "--help", "-h":
-				fmt.Printf("coshell v0.1.2 by gdm85 - Licensed under GNU GPLv2\n")
+				fmt.Printf("coshell v0.1.3 by gdm85 - Licensed under GNU GPLv2\n")
 				fmt.Printf("Usage:\n\tcoshell [--help|-h] [--deinterlace|-d] [--halt-all|-a] < list-of-commands\n")
 				fmt.Printf("\t\t--deinterlace | -d\t\tShow individual output of processes in blocks, second order of termination\n\n")
-				fmt.Printf("\t\t--halt-all | -a\t\tTerminate neighbour processes as soon as any has failed\n\n")
+				fmt.Printf("\t\t--halt-all | -a\t\tTerminate neighbour processes as soon as any has failed, using its exit code\n\n")
+				fmt.Printf("\t\t--master=0 | -m=0\t\tTerminate neighbour processes as soon as command from specified input line exits and use its exit code; if no id is specified, 0 is assumed\n\n")
 				fmt.Printf("Each line read from standard input will be run as a command via `sh -c`\n")
 				os.Exit(0)
 			case "--halt-all", "-a":
@@ -74,6 +131,7 @@ func main() {
 
 			// crash in case of other errors
 			fatal(err)
+			return
 		}
 
 		commandLines = append(commandLines, line)
@@ -81,23 +139,31 @@ func main() {
 
 	if len(commandLines) == 0 {
 		fatal(errors.New("please specify at least 1 command in standard input"))
+		return
+	}
+	if masterId != -1 && masterId >= len(commandLines) {
+		fatal(errors.New("specified master command index is beyond last specified command"))
+		return
 	}
 
-	cg := cosh.NewCommandGroup(deinterlace, halt)
+	cg := cosh.NewCommandGroup(deinterlace, halt, masterId)
 
 	err := cg.Add(commandLines...)
 	if err != nil {
 		fatal(err)
+		return
 	}
 
 	err = cg.Start()
 	if err != nil {
 		fatal(err)
+		return
 	}
 
 	err, exitCode := cg.Join()
 	if err != nil {
 		fatal(err)
+		return
 	}
 
 	os.Exit(exitCode)
