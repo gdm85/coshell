@@ -56,7 +56,13 @@ printed in the same chronological order as process termination.
 ## halt-all option
 
 If `--halt-all` or `-a` option is specified then first process to terminate unsuccessfully (with non-zero exit code) will cause 
-all processes to immediately exit (including coshell).
+all processes to immediately exit (including coshell) with the exit code of such process.
+
+## master option
+
+The `--master=n` or `-m=n` option takes a positive integer number as the index of specified command lines to identify
+which process "leads" the pack: when the process exits all neighbour processes will be terminated as well and its exit code
+will be adopted as coshell exit code.
 
 ## Examples
 
