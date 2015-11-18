@@ -42,12 +42,12 @@ func main() {
 			switch os.Args[i] {
 			case "--help", "-h":
 				fmt.Printf("coshell v0.1.2 by gdm85 - Licensed under GNU GPLv2\n")
-				fmt.Printf("Usage:\n\tcoshell [--help|-h] [--deinterlace|-d] [--halt|-a] < list-of-commands\n")
+				fmt.Printf("Usage:\n\tcoshell [--help|-h] [--deinterlace|-d] [--halt-all|-a] < list-of-commands\n")
 				fmt.Printf("\t\t--deinterlace | -d\t\tShow individual output of processes in blocks, second order of termination\n\n")
-				fmt.Printf("\t\t--halt | -a\t\tTerminate neighbour processes as soon as any fails\n\n")
+				fmt.Printf("\t\t--halt-all | -a\t\tTerminate neighbour processes as soon as any has failed\n\n")
 				fmt.Printf("Each line read from standard input will be run as a command via `sh -c`\n")
 				os.Exit(0)
-			case "--halt", "-a":
+			case "--halt-all", "-a":
 				halt = true
 				continue
 			case "--deinterlace", "-d":
