@@ -1,5 +1,5 @@
 /*
- * coshell v0.1.3 - a no-frills dependency-free replacement for GNU parallel
+ * coshell v0.1.4 - a no-frills dependency-free replacement for GNU parallel
  * Copyright (C) 2014-2015 gdm85 - https://github.com/gdm85/coshell/
 
 This program is free software; you can redistribute it and/or
@@ -97,7 +97,7 @@ func main() {
 
 			switch os.Args[i] {
 			case "--help", "-h":
-				fmt.Printf("coshell v0.1.3 by gdm85 - Licensed under GNU GPLv2\n")
+				fmt.Printf("coshell v0.1.4 by gdm85 - Licensed under GNU GPLv2\n")
 				fmt.Printf("Usage:\n\tcoshell [--help|-h] [--deinterlace|-d] [--halt-all|-a] < list-of-commands\n")
 				fmt.Printf("\t\t--deinterlace | -d\t\tShow individual output of processes in blocks, second order of termination\n\n")
 				fmt.Printf("\t\t--halt-all | -a\t\tTerminate neighbour processes as soon as any has failed, using its exit code\n\n")
