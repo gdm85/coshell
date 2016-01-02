@@ -158,8 +158,7 @@ func (cg *CommandGroup) Join() (err error, exitCode int) {
 	}
 
 	count := 0
-	for {
-		ev := <-chainOfEvents
+	for ev := range chainOfEvents {
 		// print deinterlaced output
 		if cg.deinterlace {
 			if err = cg.outputs[ev.i].ReplayOutputs(); err != nil {
@@ -182,7 +181,9 @@ func (cg *CommandGroup) Join() (err error, exitCode int) {
 
 		// make these objects no more usable
 		cg.commands[ev.i] = nil
-		cg.outputs[ev.i] = nil
+		if cg.deinterlace {
+			cg.outputs[ev.i] = nil
+		}
 
 		if cg.halt && ev.exitCode != 0 {
 			if cg.deinterlace {
@@ -250,7 +251,9 @@ func (cg *CommandGroup) Add(commandLines ...string) error {
 
 	// finally append
 	cg.commands = append(cg.commands, commands...)
-	cg.outputs = append(cg.outputs, outputs...)
+	if cg.deinterlace {
+		cg.outputs = append(cg.outputs, outputs...)
+	}
 
 	return nil
 }
