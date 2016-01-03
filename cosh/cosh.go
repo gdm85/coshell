@@ -1,5 +1,5 @@
 /*
- * coshell v0.1.3 - a no-frills dependency-free replacement for GNU parallel
+ * coshell v0.1.4 - a no-frills dependency-free replacement for GNU parallel
  * Copyright (C) 2014-2015 gdm85 - https://github.com/gdm85/coshell/
 
 This program is free software; you can redistribute it and/or
@@ -195,8 +195,9 @@ func (cg *CommandGroup) Join() (err error, exitCode int) {
 				}
 			}
 
-			// perform hara-kiri
-			os.Exit(ev.exitCode)
+			// exit point
+			exitCode = ev.exitCode
+			return
 		}
 
 		if cg.masterId != -1 && cg.masterId == ev.i {
@@ -209,8 +210,9 @@ func (cg *CommandGroup) Join() (err error, exitCode int) {
 				}
 			}
 
-			// perform hara-kiri
-			os.Exit(ev.exitCode)
+			// exit point
+			exitCode = ev.exitCode
+			return
 		}
 	}
 
