@@ -2,7 +2,7 @@ all: build test
 
 build:
 	mkdir -p bin/
-	./emu-gopath.sh github.com/gdm85/coshell 'GOBIN="$(CURDIR)bin/" go install'
+	./emu-gopath.sh github.com/gdm85/coshell 'GOBIN="$(CURDIR)/bin/" go install'
 
 test:
 	./emu-gopath.sh github.com/gdm85/coshell 'cd cosh && go test'
