@@ -26,4 +26,4 @@ generate_testcase() {
 	done
 }
 
-generate_testcase | ./coshell --deinterlace
+generate_testcase | bin/coshell --deinterlace

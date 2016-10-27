@@ -19,4 +19,4 @@ generate_testcase() {
 	done
 }
 
-generate_testcase | ./coshell --deinterlace --halt
+generate_testcase | bin/coshell --deinterlace --halt-all

@@ -1,13 +1,13 @@
-all: build test
+all: bin/coshell test
 
-build:
+bin/coshell:
 	mkdir -p bin/
-	./emu-gopath.sh github.com/gdm85/coshell 'GOBIN="$(CURDIR)/bin/" go install'
+	GOBIN="$(CURDIR)/bin/" go install
 
 test:
-	./emu-gopath.sh github.com/gdm85/coshell 'cd cosh && go test'
+	cd cosh && go test
 
 clean:
 	rm -rf bin/
 
-.PHONY: all build clean
+.PHONY: all bin/coshell test clean
