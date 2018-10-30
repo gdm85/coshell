@@ -12,7 +12,7 @@ An ``sh -c ...`` command is started for each of the input commands; environment 
 All commands will be executed, no matter which one fails.
 Return value will be the sum of exit values of each command.
 
-It is suggested to use `exec` if you want the shell-spawned process to subsitute each of the wrapping shells and be able to handle signals.
+It is suggested to use `exec` if you want the shell-spawned process to substitute each of the wrapping shells and be able to handle signals.
 See also http://tldp.org/LDP/abs/html/process-sub.html
 
 # Self-contained
