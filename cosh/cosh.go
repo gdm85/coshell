@@ -33,6 +33,8 @@ const (
 	OutputStderr
 )
 
+var ErrEmptyCommandLine = errors.New("empty command line")
+
 type OutputType int
 
 type SortedOutput struct {
@@ -105,18 +107,25 @@ type CommandGroup struct {
 	outputs     []*SortedOutput
 	deinterlace bool
 	halt        bool
-	masterId    int
+	masterID    int
 	ordered     bool
+
+	shellArgs []string
 }
 
-func NewCommandGroup(deinterlace, halt bool, masterId int, ordered bool) *CommandGroup {
+func NewCommandGroup(shellArgs []string, deinterlace, halt bool, masterID int, ordered bool) *CommandGroup {
 	if ordered {
 		deinterlace = true
 	}
-	return &CommandGroup{deinterlace: deinterlace, halt: halt, masterId: masterId, ordered: ordered}
+	return &CommandGroup{
+		deinterlace: deinterlace,
+		halt:        halt,
+		masterID:    masterID,
+		ordered:     ordered,
+	}
 }
 
-func (cg *CommandGroup) Start() error {
+func (cg *CommandGroup) Start(jobs int) error {
 	// run them all at once
 	for i := 0; i < len(cg.commands); i++ {
 		err := cg.commands[i].Start()
@@ -221,7 +230,7 @@ func (cg *CommandGroup) Join() (err error, exitCode int) {
 		}
 
 		// if master aborts, show its output
-		if cg.masterId != -1 && cg.masterId == ev.index {
+		if cg.masterID != -1 && cg.masterID == ev.index {
 			if cg.deinterlace {
 				// dump outputs that are available
 				for _, output := range cg.outputs {
@@ -258,7 +267,11 @@ func (cg *CommandGroup) Add(commandLines ...string) error {
 		}
 	}
 	for i := 0; i < len(commandLines); i++ {
-		commands[i] = exec.Command("sh", "-c", commandLines[i])
+		commands[i], err = cg.prepareCommand(commandLines[i])
+		if err != nil {
+			// will only happen in case of problems at splting the command line
+			return err
+		}
 		commands[i].Env = env
 		commands[i].Dir = cwd
 
@@ -279,4 +292,22 @@ func (cg *CommandGroup) Add(commandLines ...string) error {
 	}
 
 	return nil
+}
+
+func (cg *CommandGroup) prepareCommand(cmdLine string) (*exec.Cmd, error) {
+	// using a shell prefix, append the whole command line
+	if len(cg.shellArgs) != 0 {
+		return exec.Command(cg.shellArgs[0], append(cg.shellArgs[1:], cmdLine)...), nil
+	}
+
+	args, err := Split(cmdLine)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(args) == 0 {
+		return nil, ErrEmptyCommandLine
+	}
+
+	return exec.Command(args[0], args[1:]...), nil
 }

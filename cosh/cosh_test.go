@@ -42,12 +42,12 @@ func TestCommandGroupOptions(t *testing.T) {
 	for _, c := range combinations {
 		for masterId := -1; masterId < len(testCommandLines); masterId++ {
 			var exitCode int
-			cg := NewCommandGroup(c.Deinterlace, c.Halt, masterId, false)
+			cg := NewCommandGroup([]string{"sh", "-c"}, c.Deinterlace, c.Halt, masterId, false)
 			err := cg.Add(testCommandLines...)
 			if err != nil {
 				t.Fatal(err.Error())
 			}
-			err = cg.Start()
+			err = cg.Start(0)
 			if err != nil {
 				t.Fatal(err.Error())
 			}

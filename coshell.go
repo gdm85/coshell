@@ -25,10 +25,11 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strconv"
 	"strings"
 
 	"github.com/gdm85/coshell/cosh"
+
+	flag "github.com/ogier/pflag"
 )
 
 func fatal(err error) {
@@ -37,91 +38,32 @@ func fatal(err error) {
 }
 
 func main() {
-	var deinterlace, ordered, halt, nextMightBeMasterId bool
-	masterId := -1
-	if len(os.Args) > 1 {
-		for i := 1; i < len(os.Args); i++ {
-			if nextMightBeMasterId {
-				nextMightBeMasterId = false
-				if len(os.Args[i]) == 0 {
-					fmt.Fprintf(os.Stderr, "Empty master command index specified\n")
-					os.Exit(1)
-					return
-				}
+	var (
+		deinterlace, ordered, halt bool
+		masterId                   int
+		shellArgs                  string
+		jobs                       int
+	)
 
-				// clearly not a number
-				if os.Args[i][0] == '-' {
-					// use default
-					masterId = 0
-					continue
-				}
+	flag.BoolVarP(&deinterlace, "deinterlace", "d", false, "Show individual output of processes in blocks, second order of termination")
+	flag.BoolVarP(&ordered, "ordered", "o", false, "Implies --deinterlace, will output block of processes one after another, second original order specified in input")
+	flag.BoolVarP(&halt, "halt-all", "a", false, "Terminate neighbour processes as soon as any has failed, using its exit code")
+	flag.IntVarP(&masterId, "master", "m", -1, "Terminate neighbour processes as soon as command from specified input line exits and use its exit code")
+	flag.IntVarP(&jobs, "jobs", "j", 8, "Use specified number of jobs; specify 0 for unlimited concurrency")
+	flag.StringVarP(&shellArgs, "shell", "s", "sh -c", "If specified, the specified space-separated arguments will be used as shell prefix and the whole line will be passed as a single argument")
 
-				// argument is not starting with dash, number expected
-				i, err := strconv.Atoi(os.Args[i])
-				if err != nil || i < 0 {
-					fmt.Fprintf(os.Stderr, "Invalid master command index specified: %s\n", os.Args[i])
-					os.Exit(1)
-					return
-				}
-				masterId = i
-				continue
-			}
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, "coshell v0.2.1 by gdm85 - Licensed under GNU GPLv2\n")
+		fmt.Fprintf(os.Stderr, "Usage:\n\tcoshell [--jobs=8|-j8] [--deinterlace|-d] [--ordered|-o] [--halt-all|-a] < list-of-commands\n")
+		flag.PrintDefaults()
+		fmt.Fprintf(os.Stderr, "Each line read from standard input will be run as a command via `sh -c` (can be overriden with --shell=\n")
+	}
 
-			// check parameter of --master option
-			var remainder string
-			var found bool
-			if strings.HasPrefix(os.Args[i], "--master") {
-				remainder = os.Args[i][len("--master"):]
-				found = true
-			} else if strings.HasPrefix(os.Args[i], "-m") {
-				remainder = os.Args[i][len("-m"):]
-				found = true
-			}
-			if found {
-				if len(remainder) == 0 {
-					nextMightBeMasterId = true
-					continue
-				}
-				if remainder[0] == '=' {
-					remainder = remainder[1:]
-				}
-				i, err := strconv.Atoi(remainder)
-				if err != nil || i < 0 {
-					fmt.Fprintf(os.Stderr, "Invalid master command index specified: %s\n", remainder)
-					os.Exit(1)
-					return
-				}
-				masterId = i
-				continue
-			}
+	flag.Parse()
 
-			switch os.Args[i] {
-			case "--help", "-h":
-				fmt.Printf("coshell v0.2.1 by gdm85 - Licensed under GNU GPLv2\n")
-				fmt.Printf("Usage:\n\tcoshell [--help|-h] [--deinterlace|-d] [--halt-all|-a] < list-of-commands\n")
-				fmt.Printf("\t\t--deinterlace | -d\t\tShow individual output of processes in blocks, second order of termination\n\n")
-				fmt.Printf("\t\t--ordered | -o\t\tImplies --deinterlace, will output block of processes one after another, second original order specified in input\n\n")
-				fmt.Printf("\t\t--halt-all | -a\t\tTerminate neighbour processes as soon as any has failed, using its exit code\n\n")
-				fmt.Printf("\t\t--master=0 | -m=0\t\tTerminate neighbour processes as soon as command from specified input line exits and use its exit code; if no id is specified, 0 is assumed\n\n")
-				fmt.Printf("Each line read from standard input will be run as a command via `sh -c`\n")
-				os.Exit(0)
-			case "--version", "-v":
-				fmt.Printf("coshell v0.2.1 by gdm85 - Licensed under GNU GPLv2\n")
-				os.Exit(0)
-			case "--halt-all", "-a":
-				halt = true
-				continue
-			case "--deinterlace", "-d":
-				deinterlace = true
-				continue
-			case "--ordered", "-o":
-				ordered = true
-				continue
-			default:
-				fmt.Fprintf(os.Stderr, "Invalid parameter specified: %s\n", os.Args[i])
-			}
-			os.Exit(1)
-		}
+	if len(flag.Args()) != 0 {
+		fmt.Fprintf(os.Stderr, "Invalid arguments specified\n")
+		os.Exit(1)
 	}
 
 	// collect all commands to run from stdin
@@ -153,7 +95,12 @@ func main() {
 		return
 	}
 
-	cg := cosh.NewCommandGroup(deinterlace, halt, masterId, ordered)
+	if jobs < 0 {
+		fatal(errors.New("invalid jobs number"))
+		return
+	}
+
+	cg := cosh.NewCommandGroup(strings.Split(shellArgs, " "), deinterlace, halt, masterId, ordered)
 
 	err := cg.Add(commandLines...)
 	if err != nil {
@@ -161,7 +108,7 @@ func main() {
 		return
 	}
 
-	err = cg.Start()
+	err = cg.Start(jobs)
 	if err != nil {
 		fatal(err)
 		return

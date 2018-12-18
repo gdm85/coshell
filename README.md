@@ -53,6 +53,19 @@ Output:
 Order is not deterministic by default, but with option ``--deinterlace`` or ``-d`` all output will be buffered and afterwards
 printed in the same chronological order as process termination.
 
+## ordered option
+
+This option allows printing ordered output before execution of all commands; it implies `--deinterlace`.
+
+## shell
+
+It is possible to specify a custom shell prefix or no shell at all (`--shell=""`); in such case, commands will be split
+according to /bin/sh's word-splitting rules. It supports backslash-escapes, single-quotes, and double-quotes.
+Notably it does not support the `$''` style of quoting. It also doesn't attempt to perform any other sort of
+expansion, including brace expansion, shell expansion, or pathname expansion.
+
+If the given input has an unterminated quoted string or ends in a backslash-escape an error is returned.
+
 ## halt-all option
 
 If `--halt-all` or `-a` option is specified then first process to terminate unsuccessfully (with non-zero exit code) will cause 
