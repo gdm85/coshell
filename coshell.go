@@ -40,11 +40,13 @@ func fatal(err error) {
 func main() {
 	var (
 		deinterlace, ordered, halt bool
+		version                    bool
 		masterId                   int
 		shellArgs                  string
 		jobs                       int
 	)
 
+	flag.BoolVarP(&version, "version", "v", false, "Display version and exit")
 	flag.BoolVarP(&deinterlace, "deinterlace", "d", false, "Show individual output of processes in blocks, second order of termination")
 	flag.BoolVarP(&ordered, "ordered", "o", false, "Implies --deinterlace, will output block of processes one after another, second original order specified in input")
 	flag.BoolVarP(&halt, "halt-all", "a", false, "Terminate neighbour processes as soon as any has failed, using its exit code")
@@ -52,8 +54,12 @@ func main() {
 	flag.IntVarP(&jobs, "jobs", "j", 8, "Use specified number of jobs; specify 0 for unlimited concurrency")
 	flag.StringVarP(&shellArgs, "shell", "s", "sh -c", "If specified, the specified space-separated arguments will be used as shell prefix and the whole line will be passed as a single argument")
 
-	flag.Usage = func() {
+	showVersion := func() {
 		fmt.Fprintf(os.Stderr, "coshell v0.2.1 by gdm85 - Licensed under GNU GPLv2\n")
+	}
+
+	flag.Usage = func() {
+		showVersion()
 		fmt.Fprintf(os.Stderr, "Usage:\n\tcoshell [--jobs=8|-j8] [--deinterlace|-d] [--ordered|-o] [--halt-all|-a] < list-of-commands\n")
 		flag.PrintDefaults()
 		fmt.Fprintf(os.Stderr, "Each line read from standard input will be run as a command via `sh -c` (can be overriden with --shell=\n")
@@ -64,6 +70,11 @@ func main() {
 	if len(flag.Args()) != 0 {
 		fmt.Fprintf(os.Stderr, "Invalid arguments specified\n")
 		os.Exit(1)
+	}
+
+	if version {
+		showVersion()
+		os.Exit(0)
 	}
 
 	// collect all commands to run from stdin
