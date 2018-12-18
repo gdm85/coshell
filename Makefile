@@ -2,7 +2,8 @@ all: bin/coshell test
 
 bin/coshell:
 	mkdir -p bin/
-	GOBIN="$(CURDIR)/bin/" go install
+	CGO_ENABLED=0 GOBIN="$(CURDIR)/bin/" go install
+	strip bin/coshell
 
 test:
 	cd cosh && go test
