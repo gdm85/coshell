@@ -1,6 +1,6 @@
 /*
- * coshell v0.1.5 - a no-frills dependency-free replacement for GNU parallel
- * Copyright (C) 2014-2015 gdm85 - https://github.com/gdm85/coshell/
+ * coshell v0.2.1 - a no-frills dependency-free replacement for GNU parallel
+ * Copyright (C) 2014-2018 gdm85 - https://github.com/gdm85/coshell/
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -37,7 +37,7 @@ func fatal(err error) {
 }
 
 func main() {
-	var deinterlace, halt, nextMightBeMasterId bool
+	var deinterlace, ordered, halt, nextMightBeMasterId bool
 	masterId := -1
 	if len(os.Args) > 1 {
 		for i := 1; i < len(os.Args); i++ {
@@ -97,18 +97,25 @@ func main() {
 
 			switch os.Args[i] {
 			case "--help", "-h":
-				fmt.Printf("coshell v0.1.4 by gdm85 - Licensed under GNU GPLv2\n")
+				fmt.Printf("coshell v0.2.1 by gdm85 - Licensed under GNU GPLv2\n")
 				fmt.Printf("Usage:\n\tcoshell [--help|-h] [--deinterlace|-d] [--halt-all|-a] < list-of-commands\n")
 				fmt.Printf("\t\t--deinterlace | -d\t\tShow individual output of processes in blocks, second order of termination\n\n")
+				fmt.Printf("\t\t--ordered | -o\t\tImplies --deinterlace, will output block of processes one after another, second original order specified in input\n\n")
 				fmt.Printf("\t\t--halt-all | -a\t\tTerminate neighbour processes as soon as any has failed, using its exit code\n\n")
 				fmt.Printf("\t\t--master=0 | -m=0\t\tTerminate neighbour processes as soon as command from specified input line exits and use its exit code; if no id is specified, 0 is assumed\n\n")
 				fmt.Printf("Each line read from standard input will be run as a command via `sh -c`\n")
+				os.Exit(0)
+			case "--version", "-v":
+				fmt.Printf("coshell v0.2.1 by gdm85 - Licensed under GNU GPLv2\n")
 				os.Exit(0)
 			case "--halt-all", "-a":
 				halt = true
 				continue
 			case "--deinterlace", "-d":
 				deinterlace = true
+				continue
+			case "--ordered", "-o":
+				ordered = true
 				continue
 			default:
 				fmt.Fprintf(os.Stderr, "Invalid parameter specified: %s\n", os.Args[i])
@@ -146,7 +153,7 @@ func main() {
 		return
 	}
 
-	cg := cosh.NewCommandGroup(deinterlace, halt, masterId)
+	cg := cosh.NewCommandGroup(deinterlace, halt, masterId, ordered)
 
 	err := cg.Add(commandLines...)
 	if err != nil {

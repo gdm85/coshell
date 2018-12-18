@@ -1,4 +1,4 @@
-# coshell v0.1.5
+# coshell v0.2.1
 
 A no-frills dependency-free replacement for GNU parallel, perfect for initramfs usage.
 

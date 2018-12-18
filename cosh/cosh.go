@@ -1,6 +1,6 @@
 /*
- * coshell v0.1.5 - a no-frills dependency-free replacement for GNU parallel
- * Copyright (C) 2014-2015 gdm85 - https://github.com/gdm85/coshell/
+ * coshell v0.2.1 - a no-frills dependency-free replacement for GNU parallel
+ * Copyright (C) 2014-2018 gdm85 - https://github.com/gdm85/coshell/
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -106,10 +106,14 @@ type CommandGroup struct {
 	deinterlace bool
 	halt        bool
 	masterId    int
+	ordered     bool
 }
 
-func NewCommandGroup(deinterlace, halt bool, masterId int) *CommandGroup {
-	return &CommandGroup{deinterlace: deinterlace, halt: halt, masterId: masterId}
+func NewCommandGroup(deinterlace, halt bool, masterId int, ordered bool) *CommandGroup {
+	if ordered {
+		deinterlace = true
+	}
+	return &CommandGroup{deinterlace: deinterlace, halt: halt, masterId: masterId, ordered: ordered}
 }
 
 func (cg *CommandGroup) Start() error {
@@ -125,7 +129,7 @@ func (cg *CommandGroup) Start() error {
 }
 
 type event struct {
-	i        int
+	index    int
 	error    error
 	exitCode int
 }
@@ -133,7 +137,7 @@ type event struct {
 // Returns sum of all exit codes of individual commands
 func (cg *CommandGroup) Join() (err error, exitCode int) {
 
-	chainOfEvents := make(chan event, len(cg.commands))
+	completedCommands := make(chan event, len(cg.commands))
 
 	// join all and update cumulative exit status
 	for i := 0; i < len(cg.commands); i++ {
@@ -141,28 +145,44 @@ func (cg *CommandGroup) Join() (err error, exitCode int) {
 			if err := cg.commands[i].Wait(); err != nil {
 				if exitError, ok := err.(*exec.ExitError); ok {
 					if status, ok := exitError.Sys().(syscall.WaitStatus); ok {
-						chainOfEvents <- event{i: i, exitCode: status.ExitStatus()}
+						completedCommands <- event{index: i, exitCode: status.ExitStatus()}
 						return
 					} else {
-						chainOfEvents <- event{i: i, error: errors.New("cannot read exit error status")}
+						completedCommands <- event{index: i, error: errors.New("cannot read exit error status")}
 						return
 					}
 				} else {
-					chainOfEvents <- event{i: i, error: err}
+					completedCommands <- event{index: i, error: err}
 					return
 				}
 			}
 
-			chainOfEvents <- event{i: i, exitCode: 0}
+			// completed successfully
+			completedCommands <- event{index: i, exitCode: 0}
 		}(i)
 	}
 
+	orderedDisplay := make([]event, len(cg.commands))
+	displayedSoFar := 0
+
 	count := 0
-	for ev := range chainOfEvents {
+	for ev := range completedCommands {
 		// print deinterlaced output
 		if cg.deinterlace {
-			if err = cg.outputs[ev.i].ReplayOutputs(); err != nil {
-				return
+			if cg.ordered {
+				// store ordered
+				orderedDisplay[ev.index] = ev
+
+				if displayedSoFar == ev.index {
+					if err = cg.outputs[ev.index].ReplayOutputs(); err != nil {
+						return
+					}
+					displayedSoFar++
+				}
+			} else {
+				if err = cg.outputs[ev.index].ReplayOutputs(); err != nil {
+					return
+				}
 			}
 		}
 
@@ -180,9 +200,9 @@ func (cg *CommandGroup) Join() (err error, exitCode int) {
 		}
 
 		// make these objects no more usable
-		cg.commands[ev.i] = nil
+		cg.commands[ev.index] = nil
 		if cg.deinterlace {
-			cg.outputs[ev.i] = nil
+			cg.outputs[ev.index] = nil
 		}
 
 		if cg.halt && ev.exitCode != 0 {
@@ -200,7 +220,8 @@ func (cg *CommandGroup) Join() (err error, exitCode int) {
 			return
 		}
 
-		if cg.masterId != -1 && cg.masterId == ev.i {
+		// if master aborts, show its output
+		if cg.masterId != -1 && cg.masterId == ev.index {
 			if cg.deinterlace {
 				// dump outputs that are available
 				for _, output := range cg.outputs {
@@ -221,11 +242,11 @@ func (cg *CommandGroup) Join() (err error, exitCode int) {
 
 func (cg *CommandGroup) Add(commandLines ...string) error {
 	// some common values for all commands
-	env := os.Environ()
 	cwd, err := os.Getwd()
 	if err != nil {
 		return err
 	}
+	env := os.Environ()
 
 	// prepare commands to be executed
 	commands := make([]*exec.Cmd, len(commandLines))

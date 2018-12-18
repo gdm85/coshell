@@ -1,6 +1,6 @@
 /*
- * coshell v0.1.5 - a no-frills dependency-free replacement for GNU parallel
- * Copyright (C) 2014-2015 gdm85 - https://github.com/gdm85/coshell/
+ * coshell v0.2.1 - a no-frills dependency-free replacement for GNU parallel
+ * Copyright (C) 2014-2018 gdm85 - https://github.com/gdm85/coshell/
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -25,24 +25,24 @@ import (
 
 type OptionsCombination struct {
 	Deinterlace bool
-	Halt bool
+	Halt        bool
 }
 
 var (
 	combinations = []OptionsCombination{
-		{true,true},
-		{false,true},
-		{true,false},
-		{false,false},
+		{true, true},
+		{false, true},
+		{true, false},
+		{false, false},
 	}
 	testCommandLines = []string{"echo alpha >/dev/null", "echo beta >/dev/null", "echo gamma >/dev/null", "echo delta >/dev/null"}
 )
 
 func TestCommandGroupOptions(t *testing.T) {
 	for _, c := range combinations {
-		for masterId := -1; masterId<len(testCommandLines); masterId++ {
+		for masterId := -1; masterId < len(testCommandLines); masterId++ {
 			var exitCode int
-			cg := NewCommandGroup(c.Deinterlace, c.Halt, masterId)
+			cg := NewCommandGroup(c.Deinterlace, c.Halt, masterId, false)
 			err := cg.Add(testCommandLines...)
 			if err != nil {
 				t.Fatal(err.Error())
