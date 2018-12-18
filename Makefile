@@ -10,4 +10,7 @@ test:
 clean:
 	rm -rf bin/
 
-.PHONY: all bin/coshell test clean
+fmt:
+	gofmt -w *.go cosh/*.go
+
+.PHONY: all bin/coshell test clean fmt

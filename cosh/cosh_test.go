@@ -20,43 +20,53 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 package cosh
 
 import (
+	"fmt"
 	"testing"
 )
 
-type OptionsCombination struct {
-	Deinterlace bool
-	Halt        bool
-}
-
 var (
-	combinations = []OptionsCombination{
-		{true, true},
-		{false, true},
-		{true, false},
-		{false, false},
-	}
-	testCommandLines = []string{"echo alpha >/dev/null", "echo beta >/dev/null", "echo gamma >/dev/null", "echo delta >/dev/null"}
+	testCommandLinesWithShell    []string
+	testCommandLinesWithoutShell []string
 )
 
+func init() {
+	for _, word := range []string{"Alfa", "Bravo", "Charlie", "Delta", "Echo", "Foxtrot", "Golf", "Hotel", "India", "Juliett", "Kilo", "Lima", "Mike", "November", "Oscar", "Papa", "Quebec", "Romeo", "Sierra", "Tango", "Uniform", "Victor", "Whiskey", "X-ray", "Yankee", "Zulu"} {
+		testCommandLinesWithShell = append(testCommandLinesWithShell, fmt.Sprintf("echo %s", word))
+		testCommandLinesWithoutShell = append(testCommandLinesWithoutShell, fmt.Sprintf("sh -c \"echo %s\"", word))
+	}
+}
+
 func TestCommandGroupOptions(t *testing.T) {
-	for _, c := range combinations {
-		for masterId := -1; masterId < len(testCommandLines); masterId++ {
-			var exitCode int
-			cg := NewCommandGroup([]string{"sh", "-c"}, c.Deinterlace, c.Halt, masterId, false)
-			err := cg.Add(testCommandLines...)
-			if err != nil {
-				t.Fatal(err.Error())
-			}
-			err = cg.Start(0)
-			if err != nil {
-				t.Fatal(err.Error())
-			}
-			err, exitCode = cg.Join()
-			if err != nil {
-				t.Fatal(err.Error())
-			}
-			if exitCode != 0 {
-				t.Fatal("non-zero exit")
+	for _, shellArgs := range [][]string{nil, []string{"sh", "-c"}} {
+		testCommandLines := testCommandLinesWithShell
+		if len(shellArgs) == 0 {
+			testCommandLines = testCommandLinesWithoutShell
+		}
+		for _, deinterlace := range []bool{true, false} {
+			for _, halt := range []bool{true, false} {
+				for _, ordered := range []bool{true, false} {
+					for _, jobs := range []int{0, 8, 16} {
+						for masterId := -1; masterId < len(testCommandLines); masterId++ {
+							var exitCode int
+							cg := NewCommandGroup(shellArgs, deinterlace, halt, masterId, ordered)
+							err := cg.Add(testCommandLines...)
+							if err != nil {
+								t.Fatal(err.Error())
+							}
+							err = cg.Start(jobs)
+							if err != nil {
+								t.Fatal(err.Error())
+							}
+							exitCode, err = cg.Join()
+							if err != nil {
+								t.Fatal(err.Error())
+							}
+							if exitCode != 0 {
+								t.Fatal("non-zero exit")
+							}
+						}
+					}
+				}
 			}
 		}
 	}

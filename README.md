@@ -14,6 +14,7 @@ Return value will be the sum of exit values of each command.
 
 It is suggested to use `exec` if you want the shell-spawned process to substitute each of the wrapping shells and be able to handle signals.
 See also http://tldp.org/LDP/abs/html/process-sub.html
+Alternatively, you can use `--shell=""` to force the usage of no shell (see description in the options section).
 
 # Self-contained
 

@@ -114,7 +114,7 @@ func main() {
 		return
 	}
 
-	err, exitCode := cg.Join()
+	exitCode, err := cg.Join()
 	if err != nil {
 		fatal(err)
 		return

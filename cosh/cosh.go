@@ -22,6 +22,7 @@ package cosh
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"sync"
@@ -56,6 +57,12 @@ type segment struct {
 	outputType OutputType
 	offset     int
 	length     int
+}
+
+type event struct {
+	index    int
+	err      error
+	exitCode int
 }
 
 func NewSortedOutput() *SortedOutput {
@@ -111,6 +118,8 @@ type CommandGroup struct {
 	ordered     bool
 
 	shellArgs []string
+
+	completedCommands chan event
 }
 
 func NewCommandGroup(shellArgs []string, deinterlace, halt bool, masterID int, ordered bool) *CommandGroup {
@@ -126,56 +135,67 @@ func NewCommandGroup(shellArgs []string, deinterlace, halt bool, masterID int, o
 }
 
 func (cg *CommandGroup) Start(jobs int) error {
+	if jobs == 0 {
+		// set to maximum possible
+		jobs = len(cg.commands)
+	}
+	res := make(chan struct{}, jobs)
+	for i := 0; i < jobs; i++ {
+		res <- struct{}{}
+	}
+
+	cg.completedCommands = make(chan event, len(cg.commands))
+
 	// run them all at once
 	for i := 0; i < len(cg.commands); i++ {
-		err := cg.commands[i].Start()
-		if err != nil {
-			return err
-		}
+		go func(i int) {
+			<-res
+			defer func() {
+				res <- struct{}{}
+			}()
+
+			err := cg.commands[i].Start()
+			if err != nil {
+				cg.completedCommands <- event{index: i, err: err}
+				return
+			}
+
+			if err := cg.commands[i].Wait(); err == nil {
+				// completed successfully
+				cg.completedCommands <- event{index: i, exitCode: 0}
+				return
+			}
+			if exitError, ok := err.(*exec.ExitError); ok {
+				if status, ok := exitError.Sys().(syscall.WaitStatus); ok {
+					cg.completedCommands <- event{
+						index:    i,
+						exitCode: status.ExitStatus(),
+					}
+					return
+				}
+				cg.completedCommands <- event{index: i, err: errors.New("cannot read exit error status")}
+				return
+			}
+			// any other error
+			cg.completedCommands <- event{index: i, err: err}
+			return
+		}(i)
 	}
 
 	return nil
 }
 
-type event struct {
-	index    int
-	error    error
-	exitCode int
-}
-
-// Returns sum of all exit codes of individual commands
-func (cg *CommandGroup) Join() (err error, exitCode int) {
-
-	completedCommands := make(chan event, len(cg.commands))
-
-	// join all and update cumulative exit status
-	for i := 0; i < len(cg.commands); i++ {
-		go func(i int) {
-			if err := cg.commands[i].Wait(); err != nil {
-				if exitError, ok := err.(*exec.ExitError); ok {
-					if status, ok := exitError.Sys().(syscall.WaitStatus); ok {
-						completedCommands <- event{index: i, exitCode: status.ExitStatus()}
-						return
-					} else {
-						completedCommands <- event{index: i, error: errors.New("cannot read exit error status")}
-						return
-					}
-				} else {
-					completedCommands <- event{index: i, error: err}
-					return
-				}
-			}
-
-			// completed successfully
-			completedCommands <- event{index: i, exitCode: 0}
-		}(i)
-	}
+// Join waits for all commands to complete execution and return the sum of each individual exit code.
+func (cg *CommandGroup) Join() (int, error) {
 
 	orderedDisplay := make([]event, len(cg.commands))
 	displayedSoFar := 0
 
+	var outputErrors []error
+
 	count := 0
-	for ev := range completedCommands {
+	exitCode := 0
+	for ev := range cg.completedCommands {
 		// print deinterlaced output
 		if cg.deinterlace {
 			if cg.ordered {
@@ -183,28 +203,31 @@ func (cg *CommandGroup) Join() (err error, exitCode int) {
 				orderedDisplay[ev.index] = ev
 
 				if displayedSoFar == ev.index {
-					if err = cg.outputs[ev.index].ReplayOutputs(); err != nil {
-						return
+					if err := cg.outputs[ev.index].ReplayOutputs(); err != nil {
+						outputErrors = append(outputErrors, err)
 					}
 					displayedSoFar++
 				}
 			} else {
-				if err = cg.outputs[ev.index].ReplayOutputs(); err != nil {
-					return
+				if err := cg.outputs[ev.index].ReplayOutputs(); err != nil {
+					outputErrors = append(outputErrors, err)
 				}
 			}
 		}
 
 		// an unexpected error during wait and exit code processing
-		if ev.error != nil {
-			err = ev.error
-			return
+		if ev.err != nil {
+			cg.terminateAll(ev.index)
+			return -1, ev.err
 		}
 
 		exitCode += ev.exitCode
 		count++
 
+		// reached total commands that were started
 		if count == len(cg.commands) {
+			close(cg.completedCommands)
+			cg.completedCommands = nil
 			break
 		}
 
@@ -219,14 +242,18 @@ func (cg *CommandGroup) Join() (err error, exitCode int) {
 				// dump outputs that are available
 				for _, output := range cg.outputs {
 					if output != nil {
-						_ = output.ReplayOutputs()
+						err := output.ReplayOutputs()
+						if err != nil {
+							outputErrors = append(outputErrors, err)
+						}
 					}
 				}
 			}
 
 			// exit point
 			exitCode = ev.exitCode
-			return
+			cg.terminateAll(ev.index)
+			return exitCode, nil
 		}
 
 		// if master aborts, show its output
@@ -235,18 +262,26 @@ func (cg *CommandGroup) Join() (err error, exitCode int) {
 				// dump outputs that are available
 				for _, output := range cg.outputs {
 					if output != nil {
-						_ = output.ReplayOutputs()
+						err := output.ReplayOutputs()
+						if err != nil {
+							outputErrors = append(outputErrors, err)
+						}
 					}
 				}
 			}
 
 			// exit point
 			exitCode = ev.exitCode
-			return
+			cg.terminateAll(ev.index)
+			return exitCode, nil
 		}
 	}
 
-	return
+	if len(outputErrors) != 0 {
+		fmt.Fprintf(os.Stderr, "ERROR: %d errors while replaying output\n", len(outputErrors))
+	}
+
+	return exitCode, nil
 }
 
 func (cg *CommandGroup) Add(commandLines ...string) error {
@@ -310,4 +345,25 @@ func (cg *CommandGroup) prepareCommand(cmdLine string) (*exec.Cmd, error) {
 	}
 
 	return exec.Command(args[0], args[1:]...), nil
+}
+
+func (cg *CommandGroup) terminateAll(exceptIndex int) {
+	for i, cmd := range cg.commands {
+		if cmd == nil {
+			// already exited
+			continue
+		}
+		if i == exceptIndex {
+			continue
+		}
+		// not yet started processes
+		if cmd.Process == nil {
+			continue
+		}
+
+		err := cmd.Process.Kill()
+		if err != nil && err.Error() != "os: process already finished" {
+			fmt.Fprintf(os.Stderr, "ERROR: could not kill process %d: %v\n", cmd.Process.Pid, err)
+		}
+	}
 }
