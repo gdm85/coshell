@@ -30,40 +30,55 @@ var (
 )
 
 func init() {
-	for _, word := range []string{"Alfa", "Bravo", "Charlie", "Delta", "Echo", "Foxtrot", "Golf", "Hotel", "India", "Juliett", "Kilo", "Lima", "Mike", "November", "Oscar", "Papa", "Quebec", "Romeo", "Sierra", "Tango", "Uniform", "Victor", "Whiskey", "X-ray", "Yankee", "Zulu"} {
-		testCommandLinesWithShell = append(testCommandLinesWithShell, fmt.Sprintf("echo %s", word))
-		testCommandLinesWithoutShell = append(testCommandLinesWithoutShell, fmt.Sprintf("sh -c \"echo %s\"", word))
+	for i := 0; i < 26; i++ {
+		testCommandLinesWithShell = append(testCommandLinesWithShell, "echo -n")
+		testCommandLinesWithShell = append(testCommandLinesWithShell, "cd /tmp")
+
+		testCommandLinesWithoutShell = append(testCommandLinesWithoutShell, "sh -c \"echo -n\"")
+		testCommandLinesWithoutShell = append(testCommandLinesWithoutShell, fmt.Sprintf("sh -c \"cd /tmp\""))
 	}
 }
 
 func TestCommandGroupOptions(t *testing.T) {
 	for _, shellArgs := range [][]string{nil, []string{"sh", "-c"}} {
+		shellArgs := shellArgs
 		testCommandLines := testCommandLinesWithShell
 		if len(shellArgs) == 0 {
 			testCommandLines = testCommandLinesWithoutShell
 		}
 		for _, deinterlace := range []bool{true, false} {
+			deinterlace := deinterlace
 			for _, halt := range []bool{true, false} {
+				halt := halt
 				for _, ordered := range []bool{true, false} {
-					for _, jobs := range []int{0, 8, 16} {
-						for masterId := -1; masterId < len(testCommandLines); masterId++ {
-							var exitCode int
-							cg := NewCommandGroup(shellArgs, deinterlace, halt, masterId, ordered)
-							err := cg.Add(testCommandLines...)
-							if err != nil {
-								t.Fatal(err.Error())
-							}
-							err = cg.Start(jobs)
-							if err != nil {
-								t.Fatal(err.Error())
-							}
-							exitCode, err = cg.Join()
-							if err != nil {
-								t.Fatal(err.Error())
-							}
-							if exitCode != 0 {
-								t.Fatal("non-zero exit")
-							}
+					ordered := ordered
+					for _, jobs := range []int{0, 16, 32} {
+						jobs := jobs
+						for masterId := -1; masterId < len(testCommandLines)/2; masterId++ {
+							masterId := masterId
+
+							name := fmt.Sprintf("s=%v d=%v h=%v o=%v j=%d m=%d", shellArgs, deinterlace, halt, ordered, jobs, masterId)
+
+							t.Run(name, func(t *testing.T) {
+								t.Parallel()
+								var exitCode int
+								cg := NewCommandGroup(shellArgs, deinterlace, halt, masterId, ordered)
+								err := cg.Add(testCommandLines...)
+								if err != nil {
+									t.Fatal(err.Error())
+								}
+								err = cg.Start(jobs)
+								if err != nil {
+									t.Fatal(err.Error())
+								}
+								exitCode, err = cg.Join()
+								if err != nil {
+									t.Fatal(err.Error())
+								}
+								if exitCode != 0 {
+									t.Fatal("non-zero exit")
+								}
+							})
 						}
 					}
 				}

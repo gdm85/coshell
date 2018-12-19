@@ -131,6 +131,7 @@ func NewCommandGroup(shellArgs []string, deinterlace, halt bool, masterID int, o
 		halt:        halt,
 		masterID:    masterID,
 		ordered:     ordered,
+		shellArgs:   shellArgs,
 	}
 }
 

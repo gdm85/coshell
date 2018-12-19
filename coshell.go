@@ -62,7 +62,7 @@ func main() {
 		showVersion()
 		fmt.Fprintf(os.Stderr, "Usage:\n\tcoshell [--jobs=8|-j8] [--deinterlace|-d] [--ordered|-o] [--halt-all|-a] < list-of-commands\n")
 		flag.PrintDefaults()
-		fmt.Fprintf(os.Stderr, "Each line read from standard input will be run as a command via `sh -c` (can be overriden with --shell=\n")
+		fmt.Fprintf(os.Stderr, "Each line read from standard input will be run as a command via `sh -c` (can be overriden with --shell=); empty lines are ignored\n")
 	}
 
 	flag.Parse()
@@ -92,6 +92,12 @@ func main() {
 			// crash in case of other errors
 			fatal(err)
 			return
+		}
+
+		line = strings.TrimSuffix(line, "\n")
+
+		if len(line) == 0 {
+			continue
 		}
 
 		commandLines = append(commandLines, line)
