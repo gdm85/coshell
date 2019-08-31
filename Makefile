@@ -1,8 +1,8 @@
-all: bin/coshell test
+all: bin/coshell
 
 bin/coshell:
 	mkdir -p bin/
-	CGO_ENABLED=0 GOBIN="$(CURDIR)/bin/" go install
+	CGO_ENABLED=0 go build -o bin/coshell .
 	strip bin/coshell
 
 test:
