@@ -1,6 +1,6 @@
 /*
- * coshell v0.2.1 - a no-frills dependency-free replacement for GNU parallel
- * Copyright (C) 2014-2018 gdm85 - https://github.com/gdm85/coshell/
+ * coshell v0.2.2 - a no-frills dependency-free replacement for GNU parallel
+ * Copyright (C) 2014-2019 gdm85 - https://github.com/gdm85/coshell/
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
