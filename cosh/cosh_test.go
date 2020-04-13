@@ -1,6 +1,6 @@
 /*
- * coshell v0.2.2 - a no-frills dependency-free replacement for GNU parallel
- * Copyright (C) 2014-2019 gdm85 - https://github.com/gdm85/coshell/
+ * coshell v0.2.3 - a no-frills dependency-free replacement for GNU parallel
+ * Copyright (C) 2014-2020 gdm85 - https://github.com/gdm85/coshell/
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -29,8 +29,10 @@ var (
 	testCommandLinesWithoutShell []string
 )
 
+const maxCommands = 16
+
 func init() {
-	for i := 0; i < 26; i++ {
+	for i := 0; i < maxCommands; i++ {
 		testCommandLinesWithShell = append(testCommandLinesWithShell, "echo -n")
 		testCommandLinesWithShell = append(testCommandLinesWithShell, "cd /tmp")
 
@@ -39,31 +41,44 @@ func init() {
 	}
 }
 
-func TestCommandGroupOptions(t *testing.T) {
+func TestCommandPoolOptions(t *testing.T) {
+	t.Parallel()
+
 	for _, shellArgs := range [][]string{nil, []string{"sh", "-c"}} {
 		shellArgs := shellArgs
 		testCommandLines := testCommandLinesWithShell
+		hasShellArgs := 1
 		if len(shellArgs) == 0 {
 			testCommandLines = testCommandLinesWithoutShell
+			hasShellArgs = 0
 		}
 		for _, deinterlace := range []bool{true, false} {
 			deinterlace := deinterlace
 			for _, halt := range []bool{true, false} {
 				halt := halt
-				for _, ordered := range []bool{true, false} {
-					ordered := ordered
-					for _, jobs := range []int{0, 16, 32} {
-						jobs := jobs
-						for masterId := -1; masterId < len(testCommandLines)/2; masterId++ {
-							masterId := masterId
+				for _, jobs := range []int{0, maxCommands / 6, maxCommands / 2} {
+					jobs := jobs
 
-							name := fmt.Sprintf("s=%v d=%v h=%v o=%v j=%d m=%d", shellArgs, deinterlace, halt, ordered, jobs, masterId)
+					for _, seqLen := range []int{1, 2, 4} {
+						seqLen := seqLen
+
+						for masterID := -1; masterID < len(testCommandLines)/2; masterID++ {
+							masterID := masterID
+
+							name := fmt.Sprintf("shellArgs=%v d=%v h=%v j=%d m=%d seqLen=%d", hasShellArgs, deinterlace, halt, jobs, masterID, seqLen)
 
 							t.Run(name, func(t *testing.T) {
 								t.Parallel()
+
+								cfg := DefaultCommandPoolConfig
+								cfg.ShellArgs = shellArgs
+								cfg.Deinterlace = deinterlace
+								cfg.Halt = halt
+								cfg.MasterID = masterID
+
 								var exitCode int
-								cg := NewCommandGroup(shellArgs, deinterlace, halt, masterId, ordered)
-								err := cg.Add(testCommandLines...)
+								cg := NewCommandPool(&cfg)
+								err := cg.Add(seqLen, testCommandLines...)
 								if err != nil {
 									t.Fatal(err.Error())
 								}

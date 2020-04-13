@@ -1,12 +1,11 @@
-all: bin/coshell
+all: bin/coshell test
 
 bin/coshell:
-	mkdir -p bin/
-	CGO_ENABLED=0 go build -o bin/coshell .
+	CGO_ENABLED=0 go build -ldflags="-s -w" -o bin/coshell .
 	strip bin/coshell
 
 test:
-	cd cosh && go test
+	go test -race -v ./cosh
 
 clean:
 	rm -rf bin/

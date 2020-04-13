@@ -1,4 +1,4 @@
-# coshell v0.2.2
+# coshell v0.2.3
 
 A no-frills dependency-free replacement for GNU parallel, perfect for initramfs usage.
 
@@ -49,14 +49,14 @@ Output:
     test1
     test2
 
+## sequence length option
+
+By specifying a sequence length greater than 1 it is possible to group commands in sequences. Each group of commands will be executed sequentially.
+
 ## deinterlace option
 
 Order is not deterministic by default, but with option ``--deinterlace`` or ``-d`` all output will be buffered and afterwards
-printed in the same chronological order as process termination.
-
-## ordered option
-
-This option allows printing ordered output before execution of all commands; it implies `--deinterlace`.
+printed in the same chronological order as your input.
 
 ## shell
 
@@ -80,4 +80,4 @@ will be adopted as coshell exit code.
 
 ## Examples
 
-See [examples/](examples/) directory.
+See [examples/](examples/) directory for examples of various use-cases.
