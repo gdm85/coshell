@@ -1,5 +1,3 @@
-// the Split function is from https://github.com/kballard/go-shellquote
-// under MIT license
 package cosh
 
 import (
@@ -10,9 +8,12 @@ import (
 )
 
 var (
-	UnterminatedSingleQuoteError = errors.New("Unterminated single-quoted string")
-	UnterminatedDoubleQuoteError = errors.New("Unterminated double-quoted string")
-	UnterminatedEscapeError      = errors.New("Unterminated backslash-escape")
+	// ErrUnterminatedSingleQuote is returned when a single-quoted string is unterminated.
+	ErrUnterminatedSingleQuote = errors.New("Unterminated single-quoted string")
+	// ErrUnterminatedDoubleQuote is returned when a double-quoted string is unterminated.
+	ErrUnterminatedDoubleQuote = errors.New("Unterminated double-quoted string")
+	// ErrUnterminatedEscape is returned when an escape sequence is unterminated.
+	ErrUnterminatedEscape = errors.New("Unterminated backslash-escape")
 )
 
 var (
@@ -31,7 +32,10 @@ var (
 //
 // If the given input has an unterminated quoted string or ends in a
 // backslash-escape, one of UnterminatedSingleQuoteError,
-// UnterminatedDoubleQuoteError, or UnterminatedEscapeError is returned.
+// ErrUnterminatedDoubleQuote, or ErrUnterminatedEscape is returned.
+//
+// This function is from https://github.com/kballard/go-shellquote
+// under MIT license
 func Split(input string) (words []string, err error) {
 	var buf bytes.Buffer
 	words = make([]string, 0)
@@ -46,7 +50,7 @@ func Split(input string) (words []string, err error) {
 			// Look ahead for escaped newline so we can skip over it
 			next := input[l:]
 			if len(next) == 0 {
-				err = UnterminatedEscapeError
+				err = ErrUnterminatedEscape
 				return
 			}
 			c2, l2 := utf8.DecodeRuneInString(next)
@@ -75,19 +79,20 @@ raw:
 		for len(cur) > 0 {
 			c, l := utf8.DecodeRuneInString(cur)
 			cur = cur[l:]
-			if c == singleChar {
+			switch {
+			case c == singleChar:
 				buf.WriteString(input[0 : len(input)-len(cur)-l])
 				input = cur
 				goto single
-			} else if c == doubleChar {
+			case c == doubleChar:
 				buf.WriteString(input[0 : len(input)-len(cur)-l])
 				input = cur
 				goto double
-			} else if c == escapeChar {
+			case c == escapeChar:
 				buf.WriteString(input[0 : len(input)-len(cur)-l])
 				input = cur
 				goto escape
-			} else if strings.ContainsRune(splitChars, c) {
+			case strings.ContainsRune(splitChars, c):
 				buf.WriteString(input[0 : len(input)-len(cur)-l])
 				return buf.String(), cur, nil
 			}
@@ -102,7 +107,7 @@ raw:
 escape:
 	{
 		if len(input) == 0 {
-			return "", "", UnterminatedEscapeError
+			return "", "", ErrUnterminatedEscape
 		}
 		c, l := utf8.DecodeRuneInString(input)
 		if c == '\n' {
@@ -118,7 +123,7 @@ single:
 	{
 		i := strings.IndexRune(input, singleChar)
 		if i == -1 {
-			return "", "", UnterminatedSingleQuoteError
+			return "", "", ErrUnterminatedSingleQuote
 		}
 		buf.WriteString(input[0:i])
 		input = input[i+1:]
@@ -150,7 +155,7 @@ double:
 				}
 			}
 		}
-		return "", "", UnterminatedDoubleQuoteError
+		return "", "", ErrUnterminatedDoubleQuote
 	}
 
 done:

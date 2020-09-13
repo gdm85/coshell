@@ -1,5 +1,5 @@
 /*
- * coshell v0.2.3 - a no-frills dependency-free replacement for GNU parallel
+ * coshell v0.2.4 - a no-frills dependency-free replacement for GNU parallel
  * Copyright (C) 2014-2020 gdm85 - https://github.com/gdm85/coshell/
 
 This program is free software; you can redistribute it and/or
@@ -55,7 +55,7 @@ func main() {
 	flag.StringVarP(&shellArgs, "shell", "s", "sh -c", "If specified, the specified space-separated arguments will be used as shell prefix and the whole line will be passed as a single argument")
 
 	showVersion := func() {
-		fmt.Fprintf(os.Stderr, "coshell v0.2.3 by gdm85 - Licensed under GNU GPLv2\n")
+		fmt.Fprintf(os.Stderr, "coshell v0.2.4 by gdm85 - Licensed under GNU GPLv2\n")
 	}
 
 	flag.Usage = func() {

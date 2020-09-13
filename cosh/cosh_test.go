@@ -1,5 +1,5 @@
 /*
- * coshell v0.2.3 - a no-frills dependency-free replacement for GNU parallel
+ * coshell v0.2.4 - a no-frills dependency-free replacement for GNU parallel
  * Copyright (C) 2014-2020 gdm85 - https://github.com/gdm85/coshell/
 
 This program is free software; you can redistribute it and/or
@@ -37,7 +37,7 @@ func init() {
 		testCommandLinesWithShell = append(testCommandLinesWithShell, "cd /tmp")
 
 		testCommandLinesWithoutShell = append(testCommandLinesWithoutShell, "sh -c \"echo -n\"")
-		testCommandLinesWithoutShell = append(testCommandLinesWithoutShell, fmt.Sprintf("sh -c \"cd /tmp\""))
+		testCommandLinesWithoutShell = append(testCommandLinesWithoutShell, "sh -c \"cd /tmp\"")
 	}
 }
 
