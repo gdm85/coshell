@@ -125,7 +125,9 @@ func main() {
 		return
 	}
 
-	cfg.ShellArgs = strings.Split(shellArgs, " ")
+	if shellArgs != "" {
+		cfg.ShellArgs = strings.Split(shellArgs, " ")
+	}
 
 	cg := cosh.NewCommandPool(&cfg)
 
