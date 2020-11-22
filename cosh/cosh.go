@@ -28,6 +28,7 @@ import (
 	"sync"
 )
 
+// ErrEmptyCommandLine is returned when an empty command line is specified.
 var ErrEmptyCommandLine = errors.New("empty command line")
 
 type event struct {
@@ -36,6 +37,7 @@ type event struct {
 	exitCode int
 }
 
+// CommandPoolConfig is the configuration for a command pool.
 type CommandPoolConfig struct {
 	Deinterlace bool
 	Halt        bool
@@ -45,6 +47,7 @@ type CommandPoolConfig struct {
 	Stderr      io.Writer
 }
 
+// CommandPool is a command pool with associated configuration and state.
 type CommandPool struct {
 	groups          []*CommandGroup
 	outputs         []*SortedOutput
@@ -53,12 +56,15 @@ type CommandPool struct {
 	CommandPoolConfig
 }
 
+// DefaultCommandPoolConfig is the default command pool configuration.
 var DefaultCommandPoolConfig = CommandPoolConfig{
 	Stderr:   os.Stderr,
 	Stdout:   os.Stdout,
 	MasterID: -1,
 }
 
+// NewCommandPool constructs a new CommandPool; configuration is initialized to DefaultCommandPoolConfig
+// if nil.
 func NewCommandPool(cfg *CommandPoolConfig) *CommandPool {
 	if cfg == nil {
 		cfg = &DefaultCommandPoolConfig

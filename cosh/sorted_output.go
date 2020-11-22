@@ -26,12 +26,17 @@ import (
 )
 
 const (
+	// OutputStdout corresponds to os.Stdout.
 	OutputStdout = iota
+	// OutputStderr corresponds to os.Stderr.
 	OutputStderr
 )
 
+// OutputType is the type of output.
 type OutputType int
 
+// SortedOutput contains state to replay output segments in the same order
+// they were received in.
 type SortedOutput struct {
 	sync.Mutex
 	stdout SortedOutputWriter
@@ -44,6 +49,7 @@ type SortedOutput struct {
 	parentStderr io.Writer
 }
 
+// SortedOutputWriter is a writer for sorted output.
 type SortedOutputWriter struct {
 	outputType OutputType
 	parent     *SortedOutput
@@ -55,6 +61,7 @@ type segment struct {
 	length     int
 }
 
+// NewSortedOutput constructs a new SortedOutput.
 func NewSortedOutput(stdout, stderr io.Writer) *SortedOutput {
 	sp := SortedOutput{
 		parentStdout: stdout,
@@ -66,6 +73,7 @@ func NewSortedOutput(stdout, stderr io.Writer) *SortedOutput {
 	return &sp
 }
 
+// ReplayOutputs will replay all stdout/stderr outputs to parent stdout/stderr.
 func (so *SortedOutput) ReplayOutputs() error {
 	so.Lock()
 	defer so.Unlock()

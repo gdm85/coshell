@@ -28,6 +28,7 @@ import (
 	"syscall"
 )
 
+// CommandGroup is a group of commands.
 type CommandGroup struct {
 	commands []*exec.Cmd
 
@@ -36,6 +37,7 @@ type CommandGroup struct {
 	started  []bool
 }
 
+// NewCommandGroup constructs a new CommandGroup; stdin is not attached to commands.
 func (cp *CommandPool) NewCommandGroup(cwd string, env []string, stdout, stderr io.Writer, commandLines []string) (*CommandGroup, error) {
 	var cg CommandGroup
 	l := len(commandLines)
